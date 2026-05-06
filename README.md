@@ -1,6 +1,5 @@
 <img width="1797" height="809" alt="image" src="https://github.com/user-attachments/assets/255a81b0-fe83-4069-b0b6-aef09c94c8bb" />
 
-
 # 🌐 MarineSafe AI (SeaGuard ML)
 
 ## 📌 Presentation
