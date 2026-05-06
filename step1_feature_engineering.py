@@ -7,27 +7,27 @@ def perform_feature_engineering(input_file='maritime_safety_data.csv', output_fi
         df = pd.read_csv(input_file)
         df['datetime'] = pd.to_datetime(df['datetime'])
     except FileNotFoundError:
-        print(f"Error: {input_file} not found. Please run generate_data.py first.")
+        print(f"Error: {input_file} not found. Please run fetch_real_data.py first.")
         return
 
-    # 1. متغيرات زمنية: استخراج الساعة، اليوم، والشهر
+    # 1. Temporal variables: extract hour, day, and month
     df['hour'] = df['datetime'].dt.hour
     df['day'] = df['datetime'].dt.day
     df['month'] = df['datetime'].dt.month
 
-    # 2. ترميز دائري (Cyclical Encoding): للحفاظ على الاستمرارية الزمنية
-    # الساعات (24 ساعة)
+    # 2. Cyclical Encoding: To preserve temporal continuity
+    # Hours (24 hours)
     df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24.0)
     df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24.0)
     
-    # الأشهر (12 شهر)
+    # Months (12 months)
     df['month_sin'] = np.sin(2 * np.pi * df['month'] / 12.0)
     df['month_cos'] = np.cos(2 * np.pi * df['month'] / 12.0)
 
-    # الترتيب زمنياً لضمان دقة العمليات التالية
+    # Sort temporally to ensure accuracy of subsequent operations
     df = df.sort_values(by='datetime').reset_index(drop=True)
 
-    # 3. تأخيرات زمنية (Lags): لمتغيرات الطقس وعدد الحوادث السابقة
+    # 3. Lags: For weather variables and past incidents
     lags = [1, 2, 24]
     features_to_lag = ['temp_c', 'wind_speed_knots', 'wave_height_m', 'visibility_km', 'incidents']
     
@@ -35,7 +35,7 @@ def perform_feature_engineering(input_file='maritime_safety_data.csv', output_fi
         for lag in lags:
             df[f'{feature}_lag_{lag}'] = df[feature].shift(lag)
 
-    # 4. متوسطات متحركة (Rolling Averages): لمحاكاة تأثير العواصف المستمرة
+    # 4. Rolling Averages: To simulate continuous storm effects
     rolling_windows = [6, 12]
     features_to_roll = ['wave_height_m', 'wind_speed_knots']
     
@@ -43,16 +43,16 @@ def perform_feature_engineering(input_file='maritime_safety_data.csv', output_fi
         for window in rolling_windows:
             df[f'{feature}_rolling_{window}h'] = df[feature].rolling(window=window).mean()
 
-    # إسقاط القيم المفقودة (NaNs) الناتجة عن التأخيرات والمتوسطات المتحركة
+    # Drop missing values (NaNs) resulting from lags and rolling averages
     df = df.dropna().reset_index(drop=True)
 
-    # إسقاط الأعمدة الأصلية التي لم نعد بحاجة إليها للنمذجة أو إبقائها (نحتفظ بالضروري)
+    # Drop original columns no longer needed (keep necessary ones)
     # df = df.drop(columns=['hour', 'month']) 
 
-    # حفظ البيانات المعالجة
+    # Save processed data
     df.to_csv(output_file, index=False)
-    print(f"تمت معالجة البيانات بنجاح وتم حفظها في {output_file}")
-    print(f"شكل البيانات الجديد: {df.shape}")
+    print(f"Data processed successfully and saved to {output_file}")
+    print(f"New data shape: {df.shape}")
 
 if __name__ == "__main__":
     perform_feature_engineering()

@@ -4,7 +4,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import Ridge
 from sklearn.ensemble import RandomForestRegressor
 from xgboost import XGBRegressor
-from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
+from sklearn.metrics import r2_score, root_mean_squared_error, mean_absolute_error
 import joblib
 
 def perform_modeling(input_file='processed_maritime_data.csv'):
@@ -14,16 +14,16 @@ def perform_modeling(input_file='processed_maritime_data.csv'):
         print(f"Error: {input_file} not found. Please run step1_feature_engineering.py first.")
         return
 
-    # الترتيب زمنياً لضمان عدم الخلط في التقسيم
+    # Sort temporally to prevent data leakage during split
     df['datetime'] = pd.to_datetime(df['datetime'])
     df = df.sort_values('datetime').reset_index(drop=True)
     
-    # تحديد المتغيرات المستقلة والتابعة
-    # نستثني 'datetime' لأنه ليس متغيراً عددياً يمكن استخدامه مباشرة
+    # Define independent and dependent variables
+    # Exclude 'datetime' as it is not a direct numerical feature
     X = df.drop(columns=['datetime', 'incidents'])
     y = df['incidents']
 
-    # 1. التقسيم الزمني (Time Series Split)
+    # 1. Time Series Split
     # Train 70%, Validation 15%, Test 15%
     n = len(df)
     train_end = int(n * 0.70)
@@ -40,14 +40,14 @@ def perform_modeling(input_file='processed_maritime_data.csv'):
     
     print(f"Train size: {X_train.shape[0]}, Val size: {X_val.shape[0]}, Test size: {X_test.shape[0]}")
 
-    # 2. التوحيد القياسي (Standardization)
-    # استثناء المتغيرات الدائرية (sin/cos)
+    # 2. Standardization
+    # Exclude circular variables (sin/cos)
     circular_cols = ['hour_sin', 'hour_cos', 'month_sin', 'month_cos']
     num_cols = [col for col in X_train.columns if col not in circular_cols]
     
     scaler = StandardScaler()
     
-    # يجب عمل نسخة لتجنب تحذيرات SettingWithCopyWarning
+    # Make a copy to avoid SettingWithCopyWarning
     X_train_scaled = X_train.copy()
     X_val_scaled = X_val.copy()
     X_test_scaled = X_test.copy()
@@ -56,7 +56,7 @@ def perform_modeling(input_file='processed_maritime_data.csv'):
     X_val_scaled[num_cols] = scaler.transform(X_val[num_cols])
     X_test_scaled[num_cols] = scaler.transform(X_test[num_cols])
 
-    # 3. تدريب 3 نماذج (Training Models)
+    # 3. Training Models
     models = {
         'Ridge Regression': Ridge(alpha=1.0),
         'Random Forest Regressor': RandomForestRegressor(n_estimators=100, random_state=42),
@@ -67,15 +67,15 @@ def perform_modeling(input_file='processed_maritime_data.csv'):
     best_model_name = 'XGBoost Regressor' # As requested
     
     for name, model in models.items():
-        # تدريب النموذج
+        # Train the model
         model.fit(X_train_scaled, y_train)
         
-        # التوقع على بيانات الاختبار
+        # Predict on test data
         y_pred = model.predict(X_test_scaled)
         
-        # 4. التقييم
+        # 4. Evaluation
         r2 = r2_score(y_test, y_pred)
-        rmse = mean_squared_error(y_test, y_pred, squared=False)
+        rmse = root_mean_squared_error(y_test, y_pred)
         mae = mean_absolute_error(y_test, y_pred)
         
         results[name] = {'R2': r2, 'RMSE': rmse, 'MAE': mae}
@@ -85,18 +85,18 @@ def perform_modeling(input_file='processed_maritime_data.csv'):
         print(f"RMSE: {rmse:.4f}")
         print(f"MAE:  {mae:.4f}")
 
-    # 5. حفظ النموذج (Saving best model and scaler)
+    # 5. Saving best model and scaler
     xgboost_model = models[best_model_name]
     
     joblib.dump(xgboost_model, 'xgboost_model.pkl')
     joblib.dump(scaler, 'scaler.pkl')
     
-    # حفظ قائمة الأعمدة العددية لكي نتمكن من استخدامها في التطبيق لاحقاً
+    # Save list of numerical columns for later use in the app
     joblib.dump(num_cols, 'num_cols.pkl')
-    # حفظ ترتيب الأعمدة بالكامل
+    # Save the full feature column order
     joblib.dump(list(X_train.columns), 'feature_columns.pkl')
 
-    print("\nتم حفظ نموذج XGBoost والـ StandardScaler بنجاح (xgboost_model.pkl, scaler.pkl).")
+    print("\nSuccessfully saved XGBoost model and StandardScaler to (xgboost_model.pkl, scaler.pkl).")
 
 if __name__ == "__main__":
     perform_modeling()

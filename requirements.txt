@@ -5,3 +5,6 @@ xgboost
 shap
 streamlit
 joblib
+folium
+streamlit-folium
+plotly

@@ -5,7 +5,7 @@ def generate_mock_data(num_samples=5000):
     np.random.seed(42)
     
     # Create datetime range
-    dates = pd.date_range(start='2024-01-01', periods=num_samples, freq='H')
+    dates = pd.date_range(start='2024-01-01', periods=num_samples, freq='h')
     
     # Generate variables
     temp_c = np.random.normal(loc=20, scale=10, size=num_samples) # Temperature between ~0 and ~40
